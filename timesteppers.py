@@ -1,42 +1,58 @@
-#!/usr/bin/env python
-# coding: utf-8
+from __future__ import annotations
 
-# In[12]:
-
-
+from abc import abstractmethod
+from functools import cache
+from typing import Any, Callable, Generic, Optional, TypeVar, Union, cast
 
 import numpy as np
+import scipy.sparse.linalg as spla  # type: ignore
+from numpy.typing import NDArray
+from scipy import sparse
 
-from scipy import sparse  
+from finite import DifferenceNonUniformGrid, DifferenceUniformGrid
+
+T = TypeVar("T")
 
 
-class Timestepper:
+class Timestepper(Generic[T]):
+    t: float
+    iter: int
+    u: NDArray[np.float64]
+    func: T
+    dt: Optional[float]
 
+    @abstractmethod
+    def _step(self, dt: float) -> NDArray[np.float64]:
+        pass
 
-    def __init__(self, u, f):
+    def __init__(self, u: NDArray[np.float64], f: T):
         self.t = 0
         self.iter = 0
         self.u = u
         self.func = f
         self.dt = None
 
-    def step(self, dt):
+    def step(self, dt: float) -> None:
         self.u = self._step(dt)
         self.t += dt
         self.iter += 1
 
-    def evolve(self, dt, time):
+    def evolve(self, dt: float, time: float) -> None:
         while self.t < time - 1e-8:
             self.step(dt)
 
 
-class ForwardEuler(Timestepper):
-    def _step(self, dt):
+class ForwardEuler(Timestepper[Callable[[NDArray[np.float64]], NDArray[np.float64]]]):
+    def _step(self, dt: float) -> NDArray[np.float64]:
         return self.u + dt * self.func(self.u)
 
 
-class LaxFriedrichs(Timestepper):
-    def __init__(self, u, f):
+class LaxFriedrichs(Timestepper[Callable[[NDArray[np.float64]], NDArray[np.float64]]]):
+    def __init__(
+        self,
+        u: NDArray[np.float64],
+        f: Callable[[NDArray[np.float64]], NDArray[np.float64]],
+    ):
         super().__init__(u, f)
         N = len(u)
         A = sparse.diags([1 / 2, 1 / 2], offsets=[-1, 1], shape=[N, N])
@@ -45,98 +61,197 @@ class LaxFriedrichs(Timestepper):
         A[-1, 0] = 1 / 2
         self.A = A
 
-    def _step(self, dt):
-        return self.A @ self.u + dt*self.func(self.u)
+    def _step(self, dt: float) -> NDArray[np.float64]:
+        return cast(NDArray[np.float64], self.A @ self.u + dt * self.func(self.u))
 
 
-class Leapfrog(Timestepper):
-    def _step(self, dt):
+class Leapfrog(Timestepper[Callable[[NDArray[np.float64]], NDArray[np.float64]]]):
+    def _step(self, dt: float) -> NDArray[np.float64]:
         if self.iter == 0:
-            self.u_old = np.copy(self.u)
+            self.u_old = np.copy(self.u)  # type: ignore
             return self.u + dt * self.func(self.u)
         else:
-            u_temp = self.u_old + 2 * dt * self.func(self.u)
-            self.u_old = np.copy(self.u)
+            u_temp: NDArray[np.float64] = self.u_old + 2 * dt * self.func(self.u)
+            self.u_old = np.copy(self.u)  # type: ignore
             return u_temp
 
 
-class LaxWendroff(Timestepper):
-    def __init__(self, u, func1, func2):
+class LaxWendroff(Timestepper[Callable[[NDArray[np.float64]], NDArray[np.float64]]]):
+    def __init__(
+        self,
+        u: NDArray[np.float64],
+        func1: Callable[[NDArray[np.float64]], NDArray[np.float64]],
+        func2: Callable[[NDArray[np.float64]], NDArray[np.float64]],
+    ):
         self.t = 0
         self.iter = 0
         self.u = u
         self.f1 = func1
         self.f2 = func2
 
-    def _step(self, dt):
-        return self.u + dt*self.f1(self.u) + dt**2/2*self.f2(self.u)
+    def _step(self, dt: float) -> NDArray[np.float64]:
+        return cast(
+            NDArray[np.float64],
+            cast(NDArray[np.float64], self.u + dt * self.f1(self.u))
+            + cast(NDArray[np.float64], dt**2 / 2 * self.f2(self.u)),
+        )
 
 
+class Multistage(Timestepper[Callable[[NDArray[np.float64]], NDArray[np.float64]]]):
+    stages: int
+    a: NDArray[np.float64]
+    b: NDArray[np.float64]
 
-class Multistage(Timestepper):
-    def __init__(self, u, f, stages, a, b):
+    def __init__(
+        self,
+        u: NDArray[np.float64],
+        f: Callable[[NDArray[np.float64]], NDArray[np.float64]],
+        stages: int,
+        a: NDArray[np.float64],
+        b: NDArray[np.float64],
+    ):
         super().__init__(u, f)
         self.stages = stages
         self.a = a
         self.b = b
 
-    def _step(self, dt):
-        k_mat = np.zeros((len(self.u), self.stages))
-        umat = []
-        for j in range(len(self.u)):
-            if self.u[0]> self.u[j-1]:
-                umat.append(self.u[j])
-            else:
-                umat.append(self.u[j])
-            
+    def _step(self, dt: float) -> NDArray[np.float64]:
+        k = np.zeros((self.u.size, self.stages))
         for i in range(self.stages):
-            k_mat[:, i] = self.func(self.u +  (k_mat @ self.a[i, :])* dt)
-            newmat = (k_mat @ self.a[i, :])* dt
-            umat.append(newmat[0])
-        result = self.u + (k_mat @ self.b)*dt
-        return result
+            k[:, i] = self.func(self.u + dt * (k @ self.a[i, :]))
+        return self.u + dt * (k @ self.b)
 
 
-class AdamsBashforth(Timestepper):
-    
-    def __init__(self, u, f, steps, dt):
-            
+class AdamsBashforth(Timestepper[Callable[[NDArray[np.float64]], NDArray[np.float64]]]):
+    coeffs: list[NDArray[np.float64]] = []
+    steps: int
+    uhist: list[NDArray[np.float64]]
+    fhist: list[NDArray[np.float64]]
+
+    def __init__(
+        self,
+        u: NDArray[np.float64],
+        f: Callable[[NDArray[np.float64]], NDArray[np.float64]],
+        steps: int,
+        _: Any,
+    ):
         super().__init__(u, f)
         self.steps = steps
-        self.firarr = []
-        self.secarr = []
-        self.coe = []
-        for nut in range(steps):
-            fcoef = []
-            prod = 1 / (nut+1)
-            fcoef.append(prod)
-            if prod >1:
-                newcoef = np.zeros(nut)
-                newcoef[0] = 1
-
-        for num in range(1, steps + 1):
-            if len(self.coe) < num:
-                coeffmat = np.zeros(num)
-                coestr = np.zeros(num)
-                for i in range(num):
-                    polyno = np.array([1.0])
-                    x1 = i / num
-                    if x1 == 0:
-                        xre = x1
-                        xrs = x1+1
-                    for j in range(num):
+        self.uhist = []
+        self.fhist = []
+        for s in range(1, steps + 1):
+            if len(self.coeffs) < s:
+                coeff = np.zeros((s,))
+                for i in range(s):
+                    poly = np.array([1.0])
+                    x1 = i / s
+                    for j in range(s):
                         if i != j:
-                            x2 = j / num
-                            polyno = np.convolve(polyno, np.array([1.0, -x2]))
-                            polyno /= x1 - x2
-                    polyno /= np.arange(num, 0, -1)
-                    coeffmat[i] = polyno.sum()
-                self.coe.append(coeffmat)
+                            x2 = j / s
+                            poly = np.convolve(poly, np.array([1.0, -x2]))
+                            poly /= x1 - x2
+                    poly /= np.arange(s, 0, -1)
+                    coeff[i] = poly @ (1 - ((s - 1) / s) ** np.arange(s, 0, -1)) * s
+                self.coeffs.append(coeff)
 
-    def _step(self, dt):
-        self.firarr.append(self.u)
-        self.secarr.append(self.func(self.u))
-        steps = min(self.steps, len(self.firarr))
-        finres = self.firarr[-steps] + (steps* dt* (np.stack(self.secarr[-steps:], axis=1) @ self.coe[steps - 1]))
-        return finres
+    def _step(self, dt: float) -> NDArray[np.float64]:
+        self.uhist.append(self.u)
+        self.fhist.append(self.func(self.u))
+        steps = min(self.steps, len(self.uhist))
+        return self.uhist[-1] + (
+            dt
+            * cast(
+                NDArray[np.float64],
+                np.stack(self.fhist[-steps:], axis=1) @ self.coeffs[steps - 1],
+            )
+        )
 
+
+class BackwardEuler(
+    Timestepper[Union[DifferenceUniformGrid, DifferenceNonUniformGrid]]
+):
+    def __init__(
+        self,
+        u: NDArray[np.float64],
+        L: Union[DifferenceUniformGrid, DifferenceNonUniformGrid],
+    ):
+        super().__init__(u, L)
+        N = len(u)
+        self.I = sparse.eye(N, N)  # noqa: E741
+
+    def _step(self, dt: float) -> NDArray[np.float64]:
+        if dt != self.dt:
+            self.LHS = self.I - dt * self.func.matrix
+            self.LU = spla.splu(self.LHS.tocsc(), permc_spec="NATURAL")
+        self.dt = dt
+        return cast(NDArray[np.float64], self.LU.solve(self.u))
+
+
+class CrankNicolson(
+    Timestepper[Union[DifferenceUniformGrid, DifferenceNonUniformGrid]]
+):
+    def __init__(
+        self,
+        u: NDArray[np.float64],
+        L_op: Union[DifferenceUniformGrid, DifferenceNonUniformGrid],
+    ):
+        super().__init__(u, L_op)
+        N = len(u)
+        self.I = sparse.eye(N, N)  # noqa: E741
+
+    def _step(self, dt: float) -> NDArray[np.float64]:
+        if dt != self.dt:
+            self.LHS = self.I - dt / 2 * self.func.matrix
+            self.RHS = self.I + dt / 2 * self.func.matrix
+            self.LU = spla.splu(self.LHS.tocsc(), permc_spec="NATURAL")
+        self.dt = dt
+        return cast(NDArray[np.float64], self.LU.solve(self.RHS @ self.u))
+
+
+class BackwardDifferentiationFormula(
+    Timestepper[Union[DifferenceUniformGrid, DifferenceNonUniformGrid]]
+):
+    steps: int
+    thist: list[float]
+    uhist: list[NDArray[np.float64]]
+
+    def __init__(
+        self,
+        u: NDArray[np.float64],
+        L_op: Union[DifferenceUniformGrid, DifferenceNonUniformGrid],
+        steps: int,
+    ):
+        super().__init__(u, L_op)
+        self.steps = steps
+        self.thist = []
+        self.uhist = []
+
+    def _step(self, dt: float) -> NDArray[np.float64]:
+        (N,) = self.u.shape
+        self.thist.append(dt)
+        self.uhist.append(self.u)
+        steps = min(self.steps, len(self.uhist))
+        coeff = BackwardDifferentiationFormula._coeff(tuple(self.thist[-steps:]))
+        return cast(
+            NDArray[np.float64],
+            spla.spsolve(
+                self.func.matrix - coeff[-1] * sparse.eye(N, N),
+                np.stack(self.uhist[-steps:], axis=1) @ coeff[:-1],
+            ),
+        )
+
+    @staticmethod
+    @cache
+    def _coeff(thist: tuple[float, ...]) -> NDArray[np.float64]:
+        steps = len(thist)
+        x = np.cumsum(np.array((0,) + thist))
+        coeff = np.zeros((steps + 1,))
+        for i in range(steps + 1):
+            poly = np.array([1.0])
+            for j in range(steps + 1):
+                if i != j:
+                    poly = np.convolve(poly, np.array([1.0, -x[j]]))
+                    poly /= x[i] - x[j]
+            poly = poly[:-1] * np.arange(steps, 0, -1)
+            coeff[i] = poly @ (x[-1] ** np.arange(steps - 1, -1, -1))
+        return coeff
