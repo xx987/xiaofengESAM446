@@ -96,9 +96,8 @@ class ViscousBurgers2D:
         self.M = sparse.eye(2 * M)
         self.L = sparse.bmat(
             [
-                [nu * d2
-                 dsx.matrix, sparse.csr_matrix((M, M))],
-                [sparse.csr_matrix((M, M)), nu * dsx.matrix],
+                [-nu * sparse.csc_array(dsx.matrix), sparse.csr_matrix((M, M))],
+                [sparse.csr_matrix((N, N)), -nu * sparse.csc_array(dsy.matrix)],
             ]
         )
         self.xstep = CrankNicolson(self, 0)
@@ -107,8 +106,8 @@ class ViscousBurgers2D:
         self.M = sparse.eye(2 * N)
         self.L = sparse.bmat(
             [
-                [nu * dsy.matrix, sparse.csr_matrix((N, N))],
-                [sparse.csr_matrix((N, N)), nu * dsy.matrix],
+                [-nu * sparse.csc_array(dsy.matrix), sparse.csr_matrix((N, N))],
+                [sparse.csr_matrix((N, N)), -nu * sparse.csc_array(dsy.matrix)],
             ]
         )
         self.ystep = CrankNicolson(self, 1)
