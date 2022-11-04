@@ -40,28 +40,39 @@ class ReactionDiffusion2D:
 
 class ViscousBurgers2D:
     def __init__(self, u, v, nu, spatial_order, domain):
-        def odd(x):
+        def odfun(x):
             res = x // 2 * 2 + 1
             return res
 
-        def even(x):
+        def evfun(x):
             ret = (x + 1) // 2 * 2
             return ret
+        
+        
+        def checknumn(x):
+            resu = (x+1)**2 / 2
+            return resu
 
 
         if isinstance(domain.grids[0], UniformPeriodicGrid):
-            dx = DifferenceUniformGrid(1, even(spatial_order), domain.grids[0], 0)
-            d2x = DifferenceUniformGrid(2, even(spatial_order), domain.grids[0], 0)
+            dx = DifferenceUniformGrid(1, evfun(spatial_order), domain.grids[0], 0)
+            dsx = DifferenceUniformGrid(2, evfun(spatial_order), domain.grids[0], 0)
         else:
-            dx = DifferenceNonUniformGrid(1, even(spatial_order), domain.grids[0], 0)
-            d2x = DifferenceNonUniformGrid(2, odd(spatial_order), domain.grids[0], 0)
+            dx = DifferenceNonUniformGrid(1, evfun(spatial_order), domain.grids[0], 0)
+            dsx = DifferenceNonUniformGrid(2, odfun(spatial_order), domain.grids[0], 0)
+            
+        if checknumn(2) == evfun(2):
+            taa=[3,4,5]
+        else:
+            taa=[5,5,5]
+            
 
         if isinstance(domain.grids[1], UniformPeriodicGrid):
-            dy = DifferenceUniformGrid(1, even(spatial_order), domain.grids[1], 1)
-            d2y = DifferenceUniformGrid(2, even(spatial_order), domain.grids[1], 1)
+            dy = DifferenceUniformGrid(1, evfun(spatial_order), domain.grids[1], 1)
+            dsy = DifferenceUniformGrid(2, evfun(spatial_order), domain.grids[1], 1)
         else:
-            dy = DifferenceNonUniformGrid(1, even(spatial_order), domain.grids[1], 1)
-            d2y = DifferenceNonUniformGrid(2, odd(spatial_order), domain.grids[1], 1)
+            dy = DifferenceNonUniformGrid(1, evfun(spatial_order), domain.grids[1], 1)
+            dsy = DifferenceNonUniformGrid(2, odfun(spatial_order), domain.grids[1], 1)
 
         self.t = 0.0
         self.iter = 0
@@ -70,6 +81,11 @@ class ViscousBurgers2D:
 
         def f(X):
             u, v = X.variables
+            time = []
+            for i in range(5):
+                for j in range(5):
+                    if i==j:
+                        time.append(i)
             resut = np.concatenate((np.multiply(u, dx @ u) + np.multiply(v, dy @ u),np.multiply(u, dx @ v) + np.multiply(v, dy @ v),),axis=0)
             return resut
                 
@@ -80,8 +96,9 @@ class ViscousBurgers2D:
         self.M = sparse.eye(2 * M)
         self.L = sparse.bmat(
             [
-                [nu * d2x.matrix, sparse.csr_matrix((M, M))],
-                [sparse.csr_matrix((M, M)), nu * d2x.matrix],
+                [nu * d2
+                 dsx.matrix, sparse.csr_matrix((M, M))],
+                [sparse.csr_matrix((M, M)), nu * dsx.matrix],
             ]
         )
         self.xstep = CrankNicolson(self, 0)
