@@ -6,14 +6,8 @@
 
 from scipy import sparse
 from timesteppers import StateVector, CrankNicolson, RK22
-#import finite
-from finite import (
-    Difference,
-    DifferenceNonUniformGrid,
-    DifferenceUniformGrid,
-    Domain,
-    UniformPeriodicGrid,
-)
+import finite
+import numpy as np
 
 
 
