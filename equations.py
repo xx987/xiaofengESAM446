@@ -14,7 +14,7 @@ from finite import (
     Domain,
     UniformPeriodicGrid,
 )
-import numpy as np
+
 
 
 class ReactionDiffusion2D:
