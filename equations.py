@@ -6,7 +6,14 @@
 
 from scipy import sparse
 from timesteppers import StateVector, CrankNicolson, RK22
-import finite
+#import finite
+from finite import (
+    Difference,
+    DifferenceNonUniformGrid,
+    DifferenceUniformGrid,
+    Domain,
+    UniformPeriodicGrid,
+)
 
 
 class ReactionDiffusion2D:
