@@ -6,7 +6,7 @@
 
 from scipy import sparse
 from timesteppers import StateVector, CrankNicolson, RK22
-import finite
+from finite import UniformPeriodicGrid
 import numpy as np
 
 
