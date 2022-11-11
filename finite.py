@@ -177,7 +177,7 @@ class DifferenceNonUniformGrid(Difference):
         self.dof = dof
         self.j = j
 
-    def _make_stencil(self, grid, shift):
+    def _make_stencil(self, grid, shift: int = 0):
         self.dx = grid.dx
         i = np.arange(self.dof)[:, None]
         j = self.j[None, :] + shift
