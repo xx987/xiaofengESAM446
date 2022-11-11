@@ -136,7 +136,7 @@ class DifferenceUniformGrid(Difference):
     def _build_matrix(self, grid):
         shape = [grid.N] * 2
         matrix = sparse.diags(self.stencil, self.j, shape=shape)
-        matrix = matrix.tocsr()
+        matrix = matrix.tolil()
         jmin = -np.min(self.j)
         if jmin > 0:
             for i in range(jmin):
@@ -154,7 +154,7 @@ class DifferenceUniformGrid(Difference):
                     matrix[-jmax + i, -self.j.size :] = self.stencil
                 else:
                     matrix[-jmax+i,:i+1] = self.stencil[-i-1:]
-        self.matrix = matrix
+        self.matrix = matrix.tocsc()
 
 
 class DifferenceNonUniformGrid(Difference):
@@ -177,14 +177,15 @@ class DifferenceNonUniformGrid(Difference):
         self.dof = dof
         self.j = j
 
-    def _make_stencil(self, grid, shift: int = 0):
-        self.dx = grid.dx
-        i = np.arange(self.dof)[:, None]
-        j = self.j[None, :] + shift
-        S = 1 / factorial(i) * (j * self.dx) ** i
+    def _make_stencil(self, grid):
+        self.dx = grid.dx_array(self.j)
 
-        b = np.zeros(self.dof)
-        b[self.derivative_order] = 1
+        i = np.arange(self.dof)[None, :, None]
+        dx = self.dx[:, None, :]
+        S = 1/factorial(i)*(dx)**i
+
+        b = np.zeros( (grid.N, self.dof) )
+        b[:, self.derivative_order] = 1.
 
         self.stencil = np.linalg.solve(S, b)
 
