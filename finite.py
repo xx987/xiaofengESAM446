@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[ ]:
+
+
 import numpy as np
 from scipy.special import factorial
 from scipy import sparse
@@ -39,6 +45,17 @@ class NonUniformPeriodicGrid:
             dx[i, :] = values_padded[jmin+i+j] - values_padded[jmin+i]
 
         return dx
+
+
+class UniformNonPeriodicGrid:
+
+    def __init__(self, N, interval):
+        """ Non-uniform grid; no grid points at the endpoints of the interval"""
+        self.start = interval[0]
+        self.end = interval[1]
+        self.dx = (self.end - self.start)/(N-1)
+        self.N = N
+        self.values = np.linspace(self.start, self.end, N, endpoint=True)
 
 
 class Domain:
@@ -123,12 +140,18 @@ class DifferenceUniformGrid(Difference):
         jmin = -np.min(self.j)
         if jmin > 0:
             for i in range(jmin):
-                matrix[i,-jmin+i:] = self.stencil[:jmin-i]
+                if isinstance(grid, UniformNonPeriodicGrid):
+                    pass
+                else:
+                    matrix[i,-jmin+i:] = self.stencil[:jmin-i]
 
         jmax = np.max(self.j)
         if jmax > 0:
             for i in range(jmax):
-                matrix[-jmax+i,:i+1] = self.stencil[-i-1:]
+                if isinstance(grid, UniformNonPeriodicGrid):
+                    pass
+                else:
+                    matrix[-jmax+i,:i+1] = self.stencil[-i-1:]
         self.matrix = matrix
 
 
@@ -251,5 +274,4 @@ class CenteredFiniteDifference4(Difference):
         matrix[0, -1] = -8/(12*h)
         matrix[1, -1] = 1/(12*h)
         self.matrix = matrix
-
 
