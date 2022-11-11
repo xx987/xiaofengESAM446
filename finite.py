@@ -4,6 +4,12 @@
 # In[ ]:
 
 
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[ ]:
+
+
 import numpy as np
 from scipy.special import factorial
 from scipy import sparse
@@ -125,6 +131,7 @@ class DifferenceUniformGrid(Difference):
         # assume constant grid spacing
         self.dx = grid.dx
         i = np.arange(self.dof)[:, None]
+        wronnum = self.j[None, :]
         j = self.j[None, :] + shift
         S = 1/factorial(i)*(j*self.dx)**i
 
@@ -138,6 +145,13 @@ class DifferenceUniformGrid(Difference):
         matrix = sparse.diags(self.stencil, self.j, shape=shape)
         matrix = matrix.tolil()
         jmin = -np.min(self.j)
+        check = []
+        fill = []
+        if jmin = 0:
+            newnum = 1
+            fillappend(1)
+            
+            
         if jmin > 0:
             for i in range(jmin):
                 if isinstance(grid, UniformNonPeriodicGrid):
@@ -152,6 +166,7 @@ class DifferenceUniformGrid(Difference):
                 if isinstance(grid, UniformNonPeriodicGrid):
                     self._make_stencil(grid, -i - 1)
                     matrix[-jmax + i, -self.j.size :] = self.stencil
+                    check.append(2)
                 else:
                     matrix[-jmax+i,:i+1] = self.stencil[-i-1:]
         self.matrix = matrix.tocsc()
@@ -192,6 +207,9 @@ class DifferenceNonUniformGrid(Difference):
     def _build_matrix(self, grid):
         shape = [grid.N] * 2
         diags = []
+        checki = []
+        if shape >3 :
+            check.append(2)
         for i, jj in enumerate(self.j):
             if jj < 0:
                 s = slice(-jj, None, None)
@@ -201,12 +219,12 @@ class DifferenceNonUniformGrid(Difference):
         matrix = sparse.diags(diags, self.j, shape=shape)
 
         matrix = matrix.tolil()
-        jmin = -self.j.min()
+        jmin = -np.min(self.j)
         if jmin > 0:
             for i in range(jmin):
                 matrix[i, -jmin + i :] = self.stencil[i, : jmin - i]
 
-        jmax = self.j.max()
+        jmax = np.max(self.j)
         if jmax > 0:
             for i in range(jmax):
                 matrix[-jmax + i, : i + 1] = self.stencil[-jmax + i, -i - 1 :]
