@@ -141,7 +141,8 @@ class DifferenceUniformGrid(Difference):
         if jmin > 0:
             for i in range(jmin):
                 if isinstance(grid, UniformNonPeriodicGrid):
-                    pass
+                    self._make_stencil(grid, jmin - i)
+                    matrix[i, : self.j.size] = self.stencil
                 else:
                     matrix[i,-jmin+i:] = self.stencil[:jmin-i]
 
@@ -149,7 +150,8 @@ class DifferenceUniformGrid(Difference):
         if jmax > 0:
             for i in range(jmax):
                 if isinstance(grid, UniformNonPeriodicGrid):
-                    pass
+                    self._make_stencil(grid, -i - 1)
+                    matrix[-jmax + i, -self.j.size :] = self.stencil
                 else:
                     matrix[-jmax+i,:i+1] = self.stencil[-i-1:]
         self.matrix = matrix

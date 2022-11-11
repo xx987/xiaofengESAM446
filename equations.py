@@ -104,7 +104,7 @@ class DiffusionBC:
 
         self.dx = _diff_grid(1, spatial_order, domain.grids[0], 0)
         self.dsx = _diff_grid(2, spatial_order, domain.grids[0], 0)
-        d2y = _diff_grid(2, spatial_order, domain.grids[1], 1)
+        dsy = _diff_grid(2, spatial_order, domain.grids[1], 1)
 
         self.t = 0.0
         self.iter = 0
@@ -115,7 +115,7 @@ class DiffusionBC:
 
 
         self.M = sparse.eye(N)
-        self.L = -D * sparse.csc_array(d2y.matrix)
+        self.L = -D * sparse.csc_array(dsy.matrix)
         self.ystep = CrankNicolson(self, 1)
 
     def step(self, dt):
@@ -148,7 +148,7 @@ def _diff_grid(derivative_order,convergence_order,grid,axis):
         )
 
 
-class ViscousBurgers2D:
+class ViscousBurgers2D(EquationSet):
     
     def __init__(self, u, v, nu, spatial_order, domain):
         
