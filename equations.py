@@ -167,8 +167,9 @@ class ViscousBurgers2D:
         def f(X: StateVector) -> NDArray[np.float64]:
             X.scatter()
             u, v = X.variables
-            return
-                np.concatenate((np.multiply(u, dx @ u) + np.multiply(v, dy @ u),np.multiply(u, dx @ v) + np.multiply(v, dy @ v),),axis=0,)
+            resut = np.concatenate((np.multiply(u, dx @ u) + np.multiply(v, dy @ u),np.multiply(u, dx @ v) + np.multiply(v, dy @ v),),axis=0)
+            return resut
+               
             
 
         self.F = f
