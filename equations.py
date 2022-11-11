@@ -145,14 +145,7 @@ def _diff_grid(derivative_order, convergence_order, grid, axis):
 
 
 class ViscousBurgers2D:
-    def __init__(
-        self,
-        u: NDArray[np.float64],
-        v: NDArray[np.float64],
-        nu: float,
-        spatial_order: int,
-        domain: Domain,
-    ):
+    def __init__(self,u,v,nu,spatial_order,domain):
 
         dx = _diff_grid(1, spatial_order, domain.grids[0], 0)
         d2x = _diff_grid(2, spatial_order, domain.grids[0], 0)
