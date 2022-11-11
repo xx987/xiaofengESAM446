@@ -158,14 +158,7 @@ class DifferenceUniformGrid(Difference):
 
 
 class DifferenceNonUniformGrid(Difference):
-    def __init__(
-        self,
-        derivative_order: int,
-        convergence_order: int,
-        grid: NonUniformPeriodicGrid,
-        axis: int = 0,
-        stencil_type: Literal["centered"] = "centered",
-    ):
+    def __init__(self,derivative_order,convergence_order,grid,axis,stencil_type):
         if (derivative_order + convergence_order) % 2 == 0:
             raise ValueError(
                 "The derivative plus convergence order must be odd"
