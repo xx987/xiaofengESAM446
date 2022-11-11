@@ -191,27 +191,26 @@ class DifferenceNonUniformGrid(Difference):
 
     def _build_matrix(self, grid):
         shape = [grid.N] * 2
-        diags = []
-        for i, jj in enumerate(self.j):
-            if jj < 0:
-                s = slice(-jj, None, None)
-            else:
-                s = slice(None, None, None)
-            diags.append(self.stencil[s, i])
-        matrix = sparse.diags(diags, self.j, shape=shape)
-
-        matrix = matrix.tocsr()
-        jmin = -np.min(self.j)
+        matrix = sparse.diags(self.stencil, self.j, shape=shape)
+        matrix = matrix.tolil()
+        jmin = -self.j.min()
         if jmin > 0:
             for i in range(jmin):
-                matrix[i,-jmin+i:] = self.stencil[i, :jmin-i]
+                if isinstance(grid, UniformNonPeriodicGrid):
+                    self._make_stencil(grid, jmin - i)
+                    matrix[i, : self.j.size] = self.stencil
+                else:
+                    matrix[i, -jmin + i :] = self.stencil[: jmin - i]
 
-        jmax = np.max(self.j)
+        jmax = self.j.max()
         if jmax > 0:
             for i in range(jmax):
-                matrix[-jmax+i,:i+1] = self.stencil[-jmax+i, -i-1:]
-
-        self.matrix = matrix
+                if isinstance(grid, UniformNonPeriodicGrid):
+                    self._make_stencil(grid, -i - 1)
+                    matrix[-jmax + i, -self.j.size :] = self.stencil
+                else:
+                    matrix[-jmax + i, : i + 1] = self.stencil[-i - 1 :]
+        self.matrix = matrix.tocsc()
 
 
 class ForwardFiniteDifference(Difference):
