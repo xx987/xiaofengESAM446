@@ -148,7 +148,7 @@ def _diff_grid(derivative_order,convergence_order,grid,axis):
         )
 
 
-class ViscousBurgers2D(EquationSet):
+class ViscousBurgers2D:
     
     def __init__(self, u, v, nu, spatial_order, domain):
         
