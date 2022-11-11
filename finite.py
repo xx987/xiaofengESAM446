@@ -97,7 +97,7 @@ class Difference:
 
 
 class DifferenceUniformGrid(Difference):
-    def __init__(self,derivative_order,convergence_order,grid,axis,stencil_type):
+    def __init__(self,derivative_order,convergence_order,grid,axis,stencil_type='centered'):
         if stencil_type == "centered" and convergence_order % 2 != 0:
             raise ValueError("Centered finite difference has even convergence order")
 
