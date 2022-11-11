@@ -19,7 +19,7 @@ from finite import (
     UniformNonPeriodicGrid,
     UniformPeriodicGrid,
 )
-from timesteppers import RK22, CrankNicolson, EquationSet, StateVector
+
 
 
 class DiffusionBC:
