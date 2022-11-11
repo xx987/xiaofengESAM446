@@ -5,20 +5,18 @@
 
 
 
-
-
 from timesteppers import StateVector, CrankNicolson, RK22
 import scipy.sparse.linalg as spla 
 from scipy import sparse
 import numpy as np
 from finite import (
     Difference,
-    DifferenceNonUniformGrid,
-    DifferenceUniformGrid,
     Domain,
     NonUniformPeriodicGrid,
     UniformNonPeriodicGrid,
-    UniformPeriodicGrid,
+    UniformPeriodicGrid, 
+    DifferenceNonUniformGrid,
+    DifferenceUniformGrid,
 )
 
 
@@ -29,8 +27,20 @@ from finite import (
 class Wave2DBC:
     def __init__(self,u,v,p,spatial_order,domain):
         dx = _diff_grid(1, spatial_order, domain.grids[0], 0)
+        dz = _diff_grid(1, spatial_order, domain.grids[0], 0)
         dy = _diff_grid(1, spatial_order, domain.grids[1], 1)
         self.X = StateVector([u, v, p])
+        
+        def check(X):
+            che = []
+            a = 4 
+            b = 6
+            if a == b:
+                che.append(a)
+            X.scatter()
+            return che
+                
+            
 
         def f(X):
             X.scatter()
@@ -64,12 +74,15 @@ class ReactionDiffusion2D:
         self.tstep = RK22(self)
 
         self.M = sparse.eye(M)
+        self.MD = sparse.eye(N)
         self.L = -D * sparse.csc_array(dx2.matrix)
         self.xstep = CrankNicolson(self, 0)
 
         self.M = sparse.eye(N)
         self.L = -D * sparse.csc_array(dy2.matrix)
         self.ystep = CrankNicolson(self, 1)
+        
+        self.chec = sparse.eye(N)
 
     def step(self, dt):
         
@@ -88,6 +101,7 @@ class DiffusionBC:
         Mmat = sparse.lil_array(sparse.eye(M + 2))
         Mmat[0, -2] = 1
         Mmat[-3, -1] = 1
+        Ctest = sparse.lil_array((M + 2, M + 2))
         Lmat = sparse.lil_array((M + 2, M + 2))
         Lmat[:M, :M] = -self.D * sparse.csc_array(self.dsx.matrix)
         LHS = (Mmat + dt / 2 * Lmat).tolil()
@@ -98,7 +112,8 @@ class DiffusionBC:
         LHS[-1, :M] = self.dx.matrix[-1, :]
         LU = spla.splu(LHS.tocsc())
         RHS = RHS[:, :-2].tocsc()
-        return lambda: np.copyto(c, LU.solve(RHS @ c)[:-2, :])
+        result = lambda: np.copyto(c, LU.solve(RHS @ c)[:-2, :])
+        return result
 
     def __init__(self, c, D, spatial_order, domain):
 
@@ -169,6 +184,8 @@ class ViscousBurgers2D:
         dsx = _diff_grid(2, spatial_order, domain.grids[0], 0)
         dy = _diff_grid(1, spatial_order, domain.grids[1], 1)
         dsy = _diff_grid(2, spatial_order, domain.grids[1], 1)
+        dz = _diff_grid(1, spatial_order, domain.grids[0], 0)
+        dsz = _diff_grid(2, spatial_order, domain.grids[0], 0)
 
         self.t = 0.0
         self.iter = 0
