@@ -147,7 +147,7 @@ class DifferenceUniformGrid(Difference):
         jmin = -np.min(self.j)
         check = []
         fill = []
-        if jmin = 0:
+        if jmin == 0:
             newnum = 1
             fillappend(1)
             
