@@ -120,7 +120,7 @@ class DifferenceUniformGrid(Difference):
         self.dof = dof
         self.j = j
 
-    def _make_stencil(self, grid):
+    def _make_stencil(self, grid,shift:int=0):
 
         # assume constant grid spacing
         self.dx = grid.dx
@@ -191,25 +191,26 @@ class DifferenceNonUniformGrid(Difference):
 
     def _build_matrix(self, grid):
         shape = [grid.N] * 2
-        matrix = sparse.diags(self.stencil, self.j, shape=shape)
+        diags = []
+        for i, jj in enumerate(self.j):
+            if jj < 0:
+                s = slice(-jj, None, None)
+            else:
+                s = slice(None, None, None)
+            diags.append(self.stencil[s, i])
+        matrix = sparse.diags(diags, self.j, shape=shape)
+
         matrix = matrix.tolil()
         jmin = -self.j.min()
         if jmin > 0:
             for i in range(jmin):
-                if isinstance(grid, UniformNonPeriodicGrid):
-                    self._make_stencil(grid, jmin - i)
-                    matrix[i, : self.j.size] = self.stencil
-                else:
-                    matrix[i, -jmin + i :] = self.stencil[: jmin - i]
+                matrix[i, -jmin + i :] = self.stencil[i, : jmin - i]
 
         jmax = self.j.max()
         if jmax > 0:
             for i in range(jmax):
-                if isinstance(grid, UniformNonPeriodicGrid):
-                    self._make_stencil(grid, -i - 1)
-                    matrix[-jmax + i, -self.j.size :] = self.stencil
-                else:
-                    matrix[-jmax + i, : i + 1] = self.stencil[-i - 1 :]
+                matrix[-jmax + i, : i + 1] = self.stencil[-jmax + i, -i - 1 :]
+
         self.matrix = matrix.tocsc()
 
 
