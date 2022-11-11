@@ -125,7 +125,7 @@ class DifferenceUniformGrid(Difference):
         # assume constant grid spacing
         self.dx = grid.dx
         i = np.arange(self.dof)[:, None]
-        j = self.j[None, :]
+        j = self.j[None, :] + shift
         S = 1/factorial(i)*(j*self.dx)**i
 
         b = np.zeros( self.dof )
