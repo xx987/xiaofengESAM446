@@ -177,15 +177,14 @@ class DifferenceNonUniformGrid(Difference):
         self.dof = dof
         self.j = j
 
-    def _make_stencil(self, grid):
-        self.dx = grid.dx_array(self.j)
+    def _make_stencil(self, grid, shift):
+        self.dx = grid.dx
+        i = np.arange(self.dof)[:, None]
+        j = self.j[None, :] + shift
+        S = 1 / factorial(i) * (j * self.dx) ** i
 
-        i = np.arange(self.dof)[None, :, None]
-        dx = self.dx[:, None, :]
-        S = 1/factorial(i)*(dx)**i
-
-        b = np.zeros( (grid.N, self.dof) )
-        b[:, self.derivative_order] = 1.
+        b = np.zeros(self.dof)
+        b[self.derivative_order] = 1
 
         self.stencil = np.linalg.solve(S, b)
 
