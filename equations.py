@@ -130,7 +130,7 @@ def _diff_grid(derivative_order, convergence_order, grid, axis):
         return x + x % 2
 
     if isinstance(grid, NonUniformPeriodicGrid):
-        if derivative_order % 2 == 1
+        if derivative_order % 2 == 1:
             return DifferenceNonUniformGrid(
                 derivative_order, as_even(convergence_order), grid, axis
             )
