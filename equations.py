@@ -26,7 +26,7 @@ class ReactionDiffusionFI:
     
     def __init__(self, c, D, spatial_order, grid):
         self.X = StateVector([c])
-        d2 = finite.DifferenceUniformGrid(2, spatial_order, grid)
+        d2 = DifferenceUniformGrid(2, spatial_order, grid)
         self.N = len(c)
         I = sparse.eye(self.N)
         
@@ -51,10 +51,10 @@ class BurgersFI:
         
         
         N, *_ = u.shape
-        if isinstance(nu):
+        if isinstance(nu, (int, float)):
             nu = np.full((N,), nu)
-        if isinstance(nu) and len(nu.shape) == 1:
-            nu = sparse.diags(nu)  # type: ignore
+        if isinstance(nu, np.ndarray) and len(nu.shape) == 1:
+            nu = sparse.diags(nu)
         dsx = _diff_grid(2, spatial_order, grid, 0)
         dx = _diff_grid(1, spatial_order, grid, 0)
         self.X = StateVector([u])
