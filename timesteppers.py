@@ -304,7 +304,7 @@ class BackwardDifferentiationFormula(Timestepper):
     
 
 
-class FullyImplicitTimestepper(timesteppers.Timestepper):
+class FullyImplicitTimestepper(Timestepper):
 
     def __init__(self, eq_set, tol=1e-5):
         super().__init__()
