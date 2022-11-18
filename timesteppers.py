@@ -4,7 +4,6 @@
 # In[ ]:
 
 
-
 import numpy as np
 import scipy.sparse as sparse
 import scipy.sparse.linalg as spla
@@ -34,8 +33,6 @@ class StateVector:
             np.copyto(var, self.data[axslice(self.axis, i*self.N, (i+1)*self.N)])
 
 
-
-
 class Timestepper:
 
     def __init__(self):
@@ -61,12 +58,22 @@ class ExplicitTimestepper(Timestepper):
         super().__init__()
         self.X = eq_set.X
         self.F = eq_set.F
+        if hasattr(eq_set, 'BC'):
+            self.BC = eq_set.BC
+        else:
+            self.BC = None
+
+    def step(self, dt):
+        super().step(dt)
+        if self.BC:
+            self.BC(self.X)
+            self.X.scatter()
 
 
 class ForwardEuler(ExplicitTimestepper):
+
     def _step(self, dt):
         return self.X.data + dt*self.F(self.X)
-    
 
 
 class LaxFriedrichs(ExplicitTimestepper):
@@ -137,6 +144,8 @@ class Multistage(ExplicitTimestepper):
             # this loop is slow -- should make K_list a 2D array
             for j in range(i):
                 X_list[i].data += self.a[i, j]*dt*K_list[j]
+            if self.BC:
+                self.BC(X_list[i])
 
         K_list[-1] = self.F(X_list[-1])
 
@@ -175,6 +184,7 @@ class AdamsBashforth(ExplicitTimestepper):
 
         for i, coeff in enumerate(coeffs):
             self.X.data += self.dt*coeff*self.f_list[i].data
+
         return self.X.data
 
     def _coeffs(self, num):
@@ -187,7 +197,6 @@ class AdamsBashforth(ExplicitTimestepper):
 
         a = np.linalg.solve(S, b)
         return a
-
 
 
 class ImplicitTimestepper(Timestepper):
@@ -206,6 +215,7 @@ class ImplicitTimestepper(Timestepper):
             return self.LU.solve(data.T).T
         else:
             raise ValueError("Can only do implicit timestepping on first or last axis")
+
 
 class BackwardEuler(ImplicitTimestepper):
 
@@ -227,7 +237,11 @@ class CrankNicolson(ImplicitTimestepper):
         self.dt = dt
         return self._LUsolve(apply_matrix(self.RHS, self.X.data, self.axis))
 
-
+    
+    
+    
+    
+    
 
 class BackwardDifferentiationFormula(Timestepper):
 
@@ -279,6 +293,107 @@ class BackwardDifferentiationFormula(Timestepper):
         coefs /= xm
         latt = spla.splu(self.func.matrix - coefs[-1] * sparse.eye(let, let))
         return lambda u: latt.solve(u @ coeff[:-1])
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+
+class FullyImplicitTimestepper(timesteppers.Timestepper):
+
+    def __init__(self, eq_set, tol=1e-5):
+        super().__init__()
+        self.X = eq_set.X
+        self.M = eq_set.M
+        self.L = eq_set.L
+        self.F = eq_set.F
+        self.tol = tol
+        self.J = eq_set.J
+        
+    def step(self, dt, guess=None):
+        self.X.gather()
+        self.X.data = self._step(dt, guess)
+        self.X.scatter()
+        self.t += dt
+        self.iter += 1
+
+        
+class BackwardEulerFI(FullyImplicitTimestepper):
+
+    def _step(self, dt, guess):
+        if dt != self.dt:
+            self.LHS_matrix = self.M + dt*self.L
+            self.dt = dt
+
+        RHS = self.M @ self.X.data
+        if not (guess is None):
+            self.X.data[:] = guess
+        F = self.F(self.X)
+        LHS = self.LHS_matrix @ self.X.data - dt * F
+        residual = LHS - RHS
+        i_loop = 0
+        while np.max(np.abs(residual)) > self.tol:
+            jac = self.M + dt*self.L - dt*self.J(self.X)
+            dX = spla.spsolve(jac, -residual)
+            self.X.data += dX
+            F = self.F(self.X)
+            LHS = self.LHS_matrix @ self.X.data - dt * F
+            residual = LHS - RHS
+            i_loop += 1
+            if i_loop > 20:
+                print('error: reached more than 20 iterations')
+                break
+        return self.X.data
+
+
+class CrankNicolsonFI(FullyImplicitTimestepper):
+
+    def _step(self, dt, guess):
+        Zmat = self.M + dt / 2 * self.L 
+        Dmat = self.M - dt / 2 * self.L 
+        Lmat = self.M + dt / 2 * self.L  
+        Rmat = self.M - dt / 2 * self.L  
+
+        F = self.F(self.X)
+        RHS = Rmat @ self.X.data + dt / 2 * F
+        
+        if not (guess is None):
+            self.X.data[:] = guess
+        F = self.F(self.X)
+        LHS = Lmat @ self.X.data - dt / 2 * F
+        
+        ite = []
+        for i in range(20):
+            if i>= 10:
+                ite.append(i)
+            else:
+                allit = []
+                allit.append(i)
+                
+        residual = LHS - RHS
+        i_loop = 0
+        while np.abs(residual).max() > self.tol:
+            jac = Lmat - dt / 2 * self.J(self.X)
+            dX = spla.spsolve(jac, -residual)
+            self.X.data += dX
+            dXC = spla.spsolve(jac, -residual)
+            ZHS = spla.spsolve(jac, -residual)
+            F = self.F(self.X)
+            LHS =  Lmat @ self.X.data - dt / 2 * F
+            residual = LHS - RHS
+            i_loop += 1
+            if i_loop > 20:
+                print("error: more than 20 ite")
+                break
+        return self.X.data
+        
+        
+
 
 class IMEXTimestepper:
 
@@ -296,6 +411,7 @@ class IMEXTimestepper:
             self.step(dt)
 
     def step(self, dt):
+        self.X.gather()
         self.X.data = self._step(dt)
         self.X.scatter()
         self.t += dt
@@ -336,6 +452,7 @@ class CNAB(IMEXTimestepper):
             RHS = self.M @ self.X.data - 0.5*dt*self.L @ self.X.data + 3/2*dt*self.FX - 1/2*dt*self.FX_old
             self.FX_old = self.FX
             return self.LU.solve(RHS)
+
 
 class BDFExtrapolate(IMEXTimestepper):
 
@@ -389,4 +506,5 @@ class BDFExtrapolate(IMEXTimestepper):
         lu = spla.splu(self.L + fi[-1] * self.M)
         fina = lambda x, f: lu.solve(f @ se - self.M @ (x @ fi[:-1]))
         return fina
+
 

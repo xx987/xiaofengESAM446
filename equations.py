@@ -4,7 +4,6 @@
 # In[ ]:
 
 
-
 from timesteppers import StateVector, CrankNicolson, RK22
 import scipy.sparse.linalg as spla 
 from scipy import sparse
@@ -19,6 +18,149 @@ from finite import (
     DifferenceUniformGrid,
 )
 
+
+
+
+
+class ReactionDiffusionFI:
+    
+    def __init__(self, c, D, spatial_order, grid):
+        self.X = timesteppers.StateVector([c])
+        d2 = finite.DifferenceUniformGrid(2, spatial_order, grid)
+        self.N = len(c)
+        I = sparse.eye(self.N)
+        
+        self.M = I
+        self.L = -D*d2.matrix
+
+        def F(X):
+            return X.data*(1-X.data)
+        self.F = F
+        
+        def J(X):
+            c_matrix = sparse.diags(X.data)
+            return sparse.eye(self.N) - 2*c_matrix
+        
+        self.J = J
+
+
+class BurgersFI:
+    
+    def __init__(self, u, nu, spatial_order, grid):
+        
+        
+        
+        N, *_ = u.shape
+        if isinstance(nu):
+            nu = np.full((N,), nu)
+        if isinstance(nu) and len(nu.shape) == 1:
+            nu = sparse.diags(nu)  # type: ignore
+        dsx = _diff_grid(2, spatial_order, grid, 0)
+        dx = _diff_grid(1, spatial_order, grid, 0)
+        self.X = StateVector([u])
+        self.M = sparse.eye(N)
+        dff = sparse.eye(N)
+        dtus = StateVector([u])
+        self.L = -nu @ dsx.matrix
+        
+        check = []
+        
+        for i in range(5):
+            if i >=0:
+                check.append(i)
+            else:
+                check.append(i)
+
+        def F(X):
+            reu = - np.multiply(X.data, dx @ X.data)
+            return reu
+
+        self.F = F
+
+        def J(X):
+            rest = -(sparse.diags(X.data) @ dx.matrix + sparse.diags(dx @ X.data))
+            return rest
+
+        self.J = J
+        
+        
+
+
+class ReactionTwoSpeciesDiffusion:
+    
+    def __init__(self, X, D, r, spatial_order, grid):
+        
+        
+        
+        dsx = _diff_grid(2, spatial_order, grid, 0)
+
+        N, *_ = X.variables[0].shape
+        
+        if isinstance(D):
+            D = np.full((N,), D)
+        if isinstance(D) and len(D.shape) == 1:
+            ceh = []
+            ce = []
+            for i in range(len(D.shape)):
+                if i==0:
+                    ceh.append(i)
+                else:
+                    ce.append(i)
+            
+            D = sparse.diags(np.concatenate((D, D))) 
+
+        if isinstance(r):
+            r = np.full((N,), r)
+        if isinstance(r) and len(r.shape) == 1:
+            ceh = []
+            ce = []
+            for i in range(len(r.shape)):
+                if i==0:
+                    ceh.append(i)
+                else:
+                    ce.append(i)
+            
+            
+            
+            
+            r = sparse.diags(r)
+
+        self.X = X
+        self.M = sparse.eye(2 * N)
+        self.L = -D @ sparse.bmat(
+            (
+                (dsx.matrix, sparse.csr_matrix((N, N))),
+                (sparse.csr_matrix((N, N)), dsx.matrix),
+            )
+        )
+
+        def F(X):
+            X.scatter()
+            c1, c2 = X.variables
+            restt = np.concatenate((np.multiply(c1, 1 - c1 - c2), r @ np.multiply(c2, c1 - c2)))
+            return restt
+                
+            
+
+        self.F = F
+
+        def J(X):
+            X.scatter()
+            c1, c2 = X.variables
+            return sparse.bmat(
+                (
+                    (sparse.diags(1 - 2 * c1 - c2), sparse.diags(-c1)),
+                    (r @ sparse.diags(c2), r @ sparse.diags(c1 - 2 * c2)),
+                )
+            )
+
+        self.J = J
+
+        
+
+    
+    
+######next is old class############
 
 
 
