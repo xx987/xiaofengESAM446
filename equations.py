@@ -99,9 +99,9 @@ class ReactionTwoSpeciesDiffusion:
 
         N, *_ = X.variables[0].shape
         
-        if isinstance(D):
+        if isinstance(D,(int, float)):
             D = np.full((N,), D)
-        if isinstance(D) and len(D.shape) == 1:
+        if isinstance(D, np.ndarray) and len(D.shape) == 1:
             ceh = []
             ce = []
             for i in range(len(D.shape)):
@@ -112,9 +112,9 @@ class ReactionTwoSpeciesDiffusion:
             
             D = sparse.diags(np.concatenate((D, D))) 
 
-        if isinstance(r):
+        if isinstance(r,(int, float)):
             r = np.full((N,), r)
-        if isinstance(r) and len(r.shape) == 1:
+        if isinstance(r,np.ndarray) and len(r.shape) == 1:
             ceh = []
             ce = []
             for i in range(len(r.shape)):
