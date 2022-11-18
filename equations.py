@@ -25,7 +25,7 @@ from finite import (
 class ReactionDiffusionFI:
     
     def __init__(self, c, D, spatial_order, grid):
-        self.X = timesteppers.StateVector([c])
+        self.X = StateVector([c])
         d2 = finite.DifferenceUniformGrid(2, spatial_order, grid)
         self.N = len(c)
         I = sparse.eye(self.N)
