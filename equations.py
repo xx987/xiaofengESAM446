@@ -22,26 +22,7 @@ from finite import (
 
 
 
-class ReactionDiffusionFI:
-    
-    def __init__(self, c, D, spatial_order, grid):
-        self.X = StateVector([c])
-        d2 = DifferenceUniformGrid(2, spatial_order, grid)
-        self.N = len(c)
-        I = sparse.eye(self.N)
-        
-        self.M = I
-        self.L = -D*d2.matrix
 
-        def F(X):
-            return X.data*(1-X.data)
-        self.F = F
-        
-        def J(X):
-            c_matrix = sparse.diags(X.data)
-            return sparse.eye(self.N) - 2*c_matrix
-        
-        self.J = J
 
 
 class BurgersFI:
@@ -81,6 +62,28 @@ class BurgersFI:
             rest = -(sparse.diags(X.data) @ dx.matrix + sparse.diags(dx @ X.data))
             return rest
 
+        self.J = J
+
+
+class ReactionDiffusionFI:
+    
+    def __init__(self, c, D, spatial_order, grid):
+        self.X = StateVector([c])
+        d2 = DifferenceUniformGrid(2, spatial_order, grid)
+        self.N = len(c)
+        I = sparse.eye(self.N)
+        
+        self.M = I
+        self.L = -D*d2.matrix
+
+        def F(X):
+            return X.data*(1-X.data)
+        self.F = F
+        
+        def J(X):
+            c_matrix = sparse.diags(X.data)
+            return sparse.eye(self.N) - 2*c_matrix
+        
         self.J = J
         
         
